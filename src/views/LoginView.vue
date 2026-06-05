@@ -79,7 +79,9 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const isSignUp = ref(false)
 const email = ref('')
 const password = ref('')
@@ -100,9 +102,20 @@ const handleSubmit = () => {
       alert("Passwords do not match!")
       return
     }
-    alert(`Signing up with Name: ${name.value}, Email: ${email.value}`)
+    alert(`Sign up successful for ${name.value}! You can now sign in.`)
+    toggleMode()
   } else {
-    alert(`Logging in with Email: ${email.value}`)
+    if (email.value === 'admin@gmail.com' && password.value === 'admin123') {
+      localStorage.setItem('user-role', 'admin')
+      localStorage.setItem('user-email', email.value)
+      router.push('/admin')
+    } else if (email.value === 'user@gmail.com' && password.value === 'user123') {
+      localStorage.setItem('user-role', 'user')
+      localStorage.setItem('user-email', email.value)
+      router.push('/user')
+    } else {
+      alert("Invalid credentials. Try:\n- User: user@gmail.com / user123\n- Admin: admin@gmail.com / admin123")
+    }
   }
 }
 </script>
