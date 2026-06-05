@@ -3,16 +3,18 @@
     <header class="dashboard-header">
       <div class="header-brand">
         <h2>Admin Portal</h2>
-        <p class="welcome-msg">Welcome, <strong>{{ adminEmail }}</strong></p>
       </div>
-      <button @click="handleLogout" class="logout-btn">Log out</button>
+      <div class="header-actions">
+        <button @click="goToTransactions" class="transactions-btn">Transaction History</button>
+        <button @click="handleLogout" class="logout-btn">Log out</button>
+      </div>
     </header>
 
     <main class="dashboard-content">
       <section class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Total Outlay</div>
-          <div class="stat-value">$10,00,00,00,00,000</div>
+          <div class="stat-value">{{ formatAmount(totalOutlay) }}</div>
         </div>
       </section>
 
@@ -26,7 +28,6 @@
                 <th>Applicant</th>
                 <th>Type</th>
                 <th>Amount</th>
-                <th>Risk Rate</th>
                 <th class="actions-col">Actions</th>
               </tr>
             </thead>
@@ -38,9 +39,6 @@
                 </td>
                 <td>{{ app.type }}</td>
                 <td class="bold-text">{{ formatAmount(app.amount) }}</td>
-                <td>
-                  <span :class="['risk-badge', app.risk.toLowerCase()]">{{ app.risk }}</span>
-                </td>
                 <td class="actions-cell">
                   <button @click="approveApplication(app)" class="action-btn approve">Approve</button>
                   <button @click="rejectApplication(app)" class="action-btn reject">Reject</button>
@@ -66,6 +64,7 @@ const router = useRouter()
 const adminEmail = ref('admin@gmail.com')
 
 const pendingApplications = ref([])
+const totalOutlay = ref(10000000000000) // Initial outlay: $10,00,00,00,00,000
 let pollingInterval = null
 
 onMounted(() => {
@@ -75,6 +74,13 @@ onMounted(() => {
   }
   
   loadApplications()
+  
+  const storedOutlay = localStorage.getItem('lms-total-outlay')
+  if (storedOutlay) {
+    totalOutlay.value = Number(storedOutlay)
+  } else {
+    localStorage.setItem('lms-total-outlay', totalOutlay.value.toString())
+  }
 
   pollingInterval = setInterval(() => {
     loadApplications()
@@ -99,14 +105,16 @@ const loadApplications = () => {
 }
 
 const formatAmount = (amount) => {
-  if (typeof amount === 'string') return amount
-  return '$' + Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return '$' + Math.floor(Number(amount || 0)).toString()
 }
 
 const handleLogout = () => {
   localStorage.removeItem('user-role')
   localStorage.removeItem('user-email')
   router.push('/')
+}
+const goToTransactions = () => {
+  router.push('/admin/transactions')
 }
 
 const approveApplication = (application) => {
@@ -115,6 +123,21 @@ const approveApplication = (application) => {
   if (index !== -1) {
     allApps[index].status = 'Approved'
     localStorage.setItem('lms-applications', JSON.stringify(allApps))
+    
+    totalOutlay.value -= Number(application.amount)
+    localStorage.setItem('lms-total-outlay', totalOutlay.value.toString())
+    
+    const allTxns = JSON.parse(localStorage.getItem('lms-transactions') || '[]')
+    const newTxn = {
+      id: 'TXN-' + Date.now(),
+      applicantName: application.name,
+      applicantEmail: application.email,
+      amount: application.amount,
+      date: new Date().toLocaleString()
+    }
+    allTxns.push(newTxn)
+    localStorage.setItem('lms-transactions', JSON.stringify(allTxns))
+    
     alert(`Application approved for ${application.name} (${formatAmount(application.amount)})`)
     loadApplications()
   }
@@ -161,6 +184,30 @@ const rejectApplication = (application) => {
 .welcome-msg {
   font-size: 0.875rem;
   color: var(--text-muted);
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.transactions-btn {
+  padding: 8px 16px;
+  background-color: var(--primary);
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(97, 59, 155, 0.1);
+  transition: all 0.2s ease;
+}
+
+.transactions-btn:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
 }
 
 .logout-btn {
@@ -271,30 +318,6 @@ const rejectApplication = (application) => {
   color: var(--text-main);
 }
 
-.risk-badge {
-  padding: 4px 10px;
-  border-radius: 50px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  display: inline-block;
-}
-
-.risk-badge.low {
-  background-color: #def7ec;
-  color: #03543f;
-}
-
-.risk-badge.medium {
-  background-color: #fef3c7;
-  color: #92400e;
-}
-
-.risk-badge.high {
-  background-color: #fde8e8;
-  color: #9b1c1c;
-}
-
 .actions-col {
   text-align: right;
 }
@@ -340,9 +363,4 @@ const rejectApplication = (application) => {
   color: var(--text-muted);
 }
 
-@media (max-width: 640px) {
-  .dashboard-header {
-    padding: 16px 20px;
-  }
-}
 </style>

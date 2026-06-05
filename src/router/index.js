@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import UserView from '../views/UserView.vue'
 import AdminView from '../views/AdminView.vue'
+import TransactionHistoryView from '../views/TransactionHistoryView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,6 +23,12 @@ const router = createRouter({
       path: '/admin',
       name: 'admin-dashboard',
       component: AdminView,
+      meta: { requiresRole: 'admin' }
+    },
+    {
+      path: '/admin/transactions',
+      name: 'admin-transactions',
+      component: TransactionHistoryView,
       meta: { requiresRole: 'admin' }
     }
   ],

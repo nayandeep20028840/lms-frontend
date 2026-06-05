@@ -3,7 +3,6 @@
     <header class="dashboard-header">
       <div class="header-brand">
         <h2>Customer Portal</h2>
-        <p class="welcome-msg">Welcome back, <strong>{{ userEmail }}</strong></p>
       </div>
       <button @click="handleLogout" class="logout-btn">Log out</button>
     </header>
@@ -229,11 +228,28 @@ const startApplication = () => {
     alert("Please enter a valid loan amount.")
     return
   }
+
+  const storedOutlay = localStorage.getItem('lms-total-outlay')
+  const availableOutlay = storedOutlay ? Number(storedOutlay) : 10000000000000
+  
+  if (Number(quickAmount.value) > availableOutlay) {
+    alert(`Requested amount exceeds available total outlay ($${availableOutlay}).`)
+    return
+  }
+
   loanForm.value.amount = Number(quickAmount.value)
   showApplyForm.value = true
 }
 
 const submitApplication = () => {
+  const storedOutlay = localStorage.getItem('lms-total-outlay')
+  const availableOutlay = storedOutlay ? Number(storedOutlay) : 10000000000000
+  
+  if (Number(loanForm.value.amount) > availableOutlay) {
+    alert(`Requested amount exceeds available total outlay ($${availableOutlay}).`)
+    return
+  }
+
   const newApp = {
     id: Date.now(),
     name: loanForm.value.name,
@@ -241,7 +257,6 @@ const submitApplication = () => {
     type: 'Personal Loan',
     amount: Number(loanForm.value.amount),
     age: Number(loanForm.value.age),
-    risk: Number(loanForm.value.amount) > 50000 ? 'High' : (Number(loanForm.value.amount) > 15000 ? 'Medium' : 'Low'),
     status: 'Pending',
     documents: {
       nrc: { id: loanForm.value.nrcId, file: fileNames.value.nrc },
@@ -621,21 +636,4 @@ const handleLogout = () => {
   animation: fadeIn 0.25s ease forwards;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 768px) {
-  .form-container-card {
-    padding: 24px;
-  }
-  .doc-inputs {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .dashboard-header {
-    padding: 16px 20px;
-  }
-}
 </style>

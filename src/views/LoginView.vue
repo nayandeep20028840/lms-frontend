@@ -114,7 +114,7 @@ const handleSubmit = () => {
       localStorage.setItem('user-email', email.value)
       router.push('/user')
     } else {
-      alert("Invalid credentials. Try:\n- User: user@gmail.com / user123\n- Admin: admin@gmail.com / admin123")
+      alert("Invalid credentials.")
     }
   }
 }
