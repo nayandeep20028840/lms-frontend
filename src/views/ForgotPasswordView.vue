@@ -1,25 +1,20 @@
-
 <template>
   <div class="auth-container">
     <div class="form-panel">
       <div class="form-card">
         <header class="form-header">
-          <h1>{{ isSignUp ? 'Create an account' : 'Welcome back' }}</h1>
-          <p>{{ isSignUp ? 'Please enter your details to sign up' : 'Please enter your details' }}</p>
+          <h1 v-if="step === 1">Forgot Password</h1>
+          <h1 v-if="step === 2">Enter OTP</h1>
+          <h1 v-if="step === 3">Reset Password</h1>
+          <h1 v-if="step === 4">Password Reset Successful</h1>
+          
+          <p v-if="step === 1">Enter your email to receive an OTP</p>
+          <p v-if="step === 2">We've sent an OTP to {{ email }}</p>
+          <p v-if="step === 3">Please enter your new password below</p>
+          <p v-if="step === 4">You can now log in with your new password</p>
         </header>
 
-        <form @submit.prevent="handleSubmit" class="auth-form">
-          <div v-if="isSignUp" class="form-group">
-            <label for="name">Name</label>
-            <input 
-              type="text" 
-              id="name" 
-              v-model="name" 
-              placeholder="Enter your name" 
-              required
-            />
-          </div>
-
+        <form v-if="step === 1" @submit.prevent="handleEmailSubmit" class="auth-form">
           <div class="form-group">
             <label for="email">Email address</label>
             <input 
@@ -30,19 +25,35 @@
               required
             />
           </div>
+          <button type="submit" class="submit-btn">Send OTP</button>
+        </form>
 
+        <form v-if="step === 2" @submit.prevent="handleOtpSubmit" class="auth-form">
           <div class="form-group">
-            <label for="password">Password</label>
+            <label for="otp">One-Time Password</label>
+            <input 
+              type="text" 
+              id="otp" 
+              v-model="otp" 
+              placeholder="Enter 6-digit OTP" 
+              required
+            />
+          </div>
+          <button type="submit" class="submit-btn">Verify OTP</button>
+        </form>
+
+        <form v-if="step === 3" @submit.prevent="handlePasswordSubmit" class="auth-form">
+          <div class="form-group">
+            <label for="new-password">New Password</label>
             <input 
               type="password" 
-              id="password" 
-              v-model="password" 
+              id="new-password" 
+              v-model="newPassword" 
               placeholder="••••••••" 
               required
             />
           </div>
-
-          <div v-if="isSignUp" class="form-group">
+          <div class="form-group">
             <label for="confirm-password">Confirm Password</label>
             <input 
               type="password" 
@@ -52,23 +63,19 @@
               required
             />
           </div>
-
-          <div v-if="!isSignUp" class="form-actions">
-            <router-link to="/forgot-password" class="forgot-password">Forgot password?</router-link>
-          </div>
-          <button type="submit" class="submit-btn">
-            {{ isSignUp ? 'Sign up' : 'Sign in' }}
-          </button>
+          <button type="submit" class="submit-btn">Reset Password</button>
         </form>
 
-        <footer class="form-footer">
-          <span v-if="!isSignUp">
-            Don't have an account? 
-            <a href="#" @click.prevent="toggleMode">Sign up</a>
-          </span>
-          <span v-else>
-            Already have an account? 
-            <a href="#" @click.prevent="toggleMode">Log in</a>
+        <div v-if="step === 4" class="auth-form">
+          <router-link to="/login" class="submit-btn" style="text-align: center; display: block; text-decoration: none;">
+            Back to Login
+          </router-link>
+        </div>
+
+        <footer class="form-footer" v-if="step !== 4">
+          <span>
+            Remember your password? 
+            <router-link to="/login">Log in</router-link>
           </span>
         </footer>
       </div>
@@ -76,50 +83,35 @@
   </div>
 </template>
 
-
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 
-const router = useRouter()
-const isSignUp = ref(false)
+const step = ref(1)
 const email = ref('')
-const password = ref('')
+const otp = ref('')
+const newPassword = ref('')
 const confirmPassword = ref('')
-const name = ref('')
 
-const toggleMode = () => {
-  isSignUp.value = !isSignUp.value
-  email.value = ''
-  password.value = ''
-  confirmPassword.value = ''
-  name.value = ''
-}
-
-const handleSubmit = () => {
-  if (isSignUp.value) {
-    if (password.value !== confirmPassword.value) {
-      alert("Passwords do not match!")
-      return
-    }
-    alert(`Sign up successful for ${name.value}! You can now sign in.`)
-    toggleMode()
-  } else {
-    if (email.value === 'admin@gmail.com' && password.value === 'admin123') {
-      localStorage.setItem('user-role', 'admin')
-      localStorage.setItem('user-email', email.value)
-      router.push('/admin')
-    } else if (email.value === 'user@gmail.com' && password.value === 'user123') {
-      localStorage.setItem('user-role', 'user')
-      localStorage.setItem('user-email', email.value)
-      router.push('/user')
-    } else {
-      alert("Invalid credentials.")
-    }
+const handleEmailSubmit = () => {
+  if (email.value) {
+    step.value = 2
   }
 }
-</script>
 
+const handleOtpSubmit = () => {
+  if (otp.value) {
+    step.value = 3
+  }
+}
+
+const handlePasswordSubmit = () => {
+  if (newPassword.value !== confirmPassword.value) {
+    alert("Passwords do not match!")
+    return
+  }
+  step.value = 4
+}
+</script>
 
 <style scoped>
 .auth-container {
@@ -205,17 +197,6 @@ const handleSubmit = () => {
   color: #b0b4be;
 }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.forgot-password {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--primary);
-}
-
 .submit-btn {
   width: 100%;
   padding: 13px;
@@ -249,6 +230,13 @@ const handleSubmit = () => {
 
 .form-footer a {
   margin-left: 4px;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
 }
 
+.form-footer a:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
 </style>

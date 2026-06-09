@@ -3,6 +3,7 @@ import LoginView from '../views/LoginView.vue'
 import UserView from '../views/UserView.vue'
 import AdminView from '../views/AdminView.vue'
 import TransactionHistoryView from '../views/TransactionHistoryView.vue'
+import ForgotPasswordView from '../views/ForgotPasswordView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,6 +13,11 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       alias: '/login',
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPasswordView,
     },
     {
       path: '/user',
@@ -46,7 +52,7 @@ router.beforeEach((to, from, next) => {
       next()
     }
   } else {
-    if ((to.path === '/' || to.path === '/login') && userRole) {
+    if ((to.path === '/' || to.path === '/login' || to.path === '/forgot-password') && userRole) {
       next(userRole === 'admin' ? '/admin' : '/user')
     } else {
       next()
