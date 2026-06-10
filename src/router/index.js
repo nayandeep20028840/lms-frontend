@@ -40,22 +40,22 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, from) => {
   const userRole = localStorage.getItem('user-role')
 
   if (to.meta.requiresRole) {
     if (!userRole) {
-      next('/login')
+      return '/login'
     } else if (to.meta.requiresRole !== userRole) {
-      next(userRole === 'admin' ? '/admin' : '/user')
+      return userRole === 'admin' ? '/admin' : '/user'
     } else {
-      next()
+      return true
     }
   } else {
     if ((to.path === '/' || to.path === '/login' || to.path === '/forgot-password') && userRole) {
-      next(userRole === 'admin' ? '/admin' : '/user')
+      return userRole === 'admin' ? '/admin' : '/user'
     } else {
-      next()
+      return true
     }
   }
 })

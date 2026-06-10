@@ -60,10 +60,31 @@ onMounted(() => {
   loadTransactions()
 })
 
-const loadTransactions = () => {
-  const allTxns = localStorage.getItem('lms-transactions')
-  if (allTxns) {
-    transactions.value = JSON.parse(allTxns).reverse()
+const loadTransactions = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/loans/completed`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+
+      transactions.value = data.loans.map(loan => {
+        const id = loan.loanReqId || loan.pk.split('#')[1];
+        
+        return {
+          id: id,
+          date: new Date(loan.updatedAt || loan.createdAt || Date.now()).toLocaleString(),
+          applicantName: loan.name || `User ${loan.userId.substring(0, 5)}`,
+          applicantEmail: loan.email || `ID: ${loan.userId}`, 
+          amount: loan.amount
+        }
+      }).reverse();
+    } else {
+      console.error('Failed to fetch transactions from server');
+    }
+  } catch (e) {
+    console.error('Error fetching transactions:', e);
   }
 }
 
@@ -75,10 +96,23 @@ const backToDashboard = () => {
   router.push('/admin')
 }
 
-const clearHistory = () => {
+const clearHistory = async () => {
   if (confirm("Are you sure you want to clear all transaction history? This will not affect the outlay.")) {
-    localStorage.setItem('lms-transactions', JSON.stringify([]))
-    transactions.value = []
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/loans/history`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        transactions.value = [];
+        alert("Transaction history cleared successfully");
+      } else {
+        alert("Failed to clear history on backend");
+      }
+    } catch (e) {
+      alert("Error clearing history");
+    }
   }
 }
 </script>

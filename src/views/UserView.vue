@@ -186,7 +186,7 @@ const showApplyForm = ref(false)
 const quickAmount = ref('')
 
 const loanForm = ref({
-  name: 'Nayan',
+  name: '',
   email: '',
   age: '',
   amount: '',
@@ -203,10 +203,19 @@ const fileNames = ref({
   passport: ''
 })
 
+const filesToUpload = ref({
+  nrc: null,
+  selfie: null,
+  smartCard: null,
+  census: null,
+  passport: null
+})
+
 const onFileSelected = (event, type) => {
   const file = event.target.files[0]
   if (file) {
     fileNames.value[type] = file.name
+    filesToUpload.value[type] = file
   }
 }
 
@@ -229,47 +238,106 @@ const startApplication = () => {
     return
   }
 
-  const storedOutlay = localStorage.getItem('lms-total-outlay')
-  const availableOutlay = storedOutlay ? Number(storedOutlay) : 10000000000000
-  
-  if (Number(quickAmount.value) > availableOutlay) {
-    alert(`Requested amount exceeds available total outlay ($${availableOutlay}).`)
-    return
-  }
-
   loanForm.value.amount = Number(quickAmount.value)
   showApplyForm.value = true
 }
 
-const submitApplication = () => {
-  const storedOutlay = localStorage.getItem('lms-total-outlay')
-  const availableOutlay = storedOutlay ? Number(storedOutlay) : 10000000000000
-  
-  if (Number(loanForm.value.amount) > availableOutlay) {
-    alert(`Requested amount exceeds available total outlay ($${availableOutlay}).`)
-    return
+const submitApplication = async () => {
+
+  const token = localStorage.getItem('token');
+  if (!token) {
+    alert("You must be logged in to apply.");
+    return;
   }
 
-  const newApp = {
-    id: Date.now(),
-    name: loanForm.value.name,
-    email: loanForm.value.email,
-    type: 'Personal Loan',
-    amount: Number(loanForm.value.amount),
-    age: Number(loanForm.value.age),
-    status: 'Pending',
-    documents: {
-      nrc: { id: loanForm.value.nrcId, file: fileNames.value.nrc },
-      selfie: { file: fileNames.value.selfie },
-      smartCard: { id: loanForm.value.smartCardId, file: fileNames.value.smartCard },
-      census: { file: fileNames.value.census },
-      passport: { id: loanForm.value.passportId, file: fileNames.value.passport }
+  const documentIds = {};
+  for (const type of Object.keys(filesToUpload.value)) {
+    const file = filesToUpload.value[type];
+    if (!file) continue;
+
+    try {
+      const urlRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/upload-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ key: `documents/${Date.now()}-${file.name}`, contentType: file.type })
+      });
+      const urlData = await urlRes.json();
+      console.log(urlData)
+      if (!urlData.success) throw new Error("Failed to get upload URL");
+
+      const formData = new FormData();
+      for (const key in urlData.fields) {
+        formData.append(key, urlData.fields[key]);
+      }
+      formData.append("file", file);
+
+      const s3Res = await fetch(urlData.uploadUrl, {
+        method: 'POST',
+        body: formData
+      });
+      if (!s3Res.ok) throw new Error("Failed to upload to S3");
+
+      const confirmRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/confirm-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          s3Key: urlData.fields.key,
+          documentType: type,
+          contentType: file.type
+        })
+      });
+      const confirmData = await confirmRes.json();
+      if (!confirmData.success && !confirmData.documentId) throw new Error("Failed to confirm upload");
+      
+      documentIds[type] = confirmData.documentId;
+    } catch (e) {
+      console.error(`Error uploading ${type}:`, e);
+      alert(`Failed to upload ${type}. Continuing anyway.`);
     }
   }
 
-  const allApps = JSON.parse(localStorage.getItem('lms-applications') || '[]')
-  allApps.push(newApp)
-  localStorage.setItem('lms-applications', JSON.stringify(allApps))
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/request-loan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        amount: Number(loanForm.value.amount),
+        name: loanForm.value.name,
+        email: loanForm.value.email,
+        age: Number(loanForm.value.age),
+        type: 'Personal Loan',
+        documents: {
+          nrc: { id: documentIds.nrc || '', file: fileNames.value.nrc },
+          selfie: { id: documentIds.selfie || '', file: fileNames.value.selfie },
+          smartCard: { id: documentIds.smartCard || '', file: fileNames.value.smartCard },
+          census: { id: documentIds.census || '', file: fileNames.value.census },
+          passport: { id: documentIds.passport || '', file: fileNames.value.passport }
+        }
+      })
+    });
+    
+    if (!res.ok) {
+      const err = await res.json();
+      if (err.availablePool !== undefined) {
+        alert(`${err.error}\nMax available pool: $${err.availablePool}\nYou requested: $${err.requestedAmount}`);
+      } else {
+        alert(err.error || "Failed to submit loan request");
+      }
+      return;
+    }
+  } catch (e) {
+    alert("Connection error with backend. " + e.message);
+    return;
+  }
 
   alert("Loan application submitted successfully! It is now pending review.")
   
@@ -281,6 +349,7 @@ const submitApplication = () => {
   loanForm.value.smartCardId = ''
   loanForm.value.passportId = ''
   fileNames.value = { nrc: '', selfie: '', smartCard: '', census: '', passport: '' }
+  filesToUpload.value = { nrc: null, selfie: null, smartCard: null, census: null, passport: null }
 }
 
 const cancelApplication = () => {

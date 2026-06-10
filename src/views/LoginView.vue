@@ -96,25 +96,51 @@ const toggleMode = () => {
   name.value = ''
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (isSignUp.value) {
     if (password.value !== confirmPassword.value) {
       alert("Passwords do not match!")
       return
     }
-    alert(`Sign up successful for ${name.value}! You can now sign in.`)
-    toggleMode()
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.value,
+          email: email.value,
+          password: password.value,
+          phn: '0000000000'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Signup failed");
+        return;
+      }
+      alert(`Sign up successful for ${name.value}! You can now sign in.`)
+      toggleMode()
+    } catch (e) {
+      alert("Failed to connect to backend for signup.");
+    }
   } else {
-    if (email.value === 'admin@gmail.com' && password.value === 'admin123') {
-      localStorage.setItem('user-role', 'admin')
-      localStorage.setItem('user-email', email.value)
-      router.push('/admin')
-    } else if (email.value === 'user@gmail.com' && password.value === 'user123') {
-      localStorage.setItem('user-role', 'user')
-      localStorage.setItem('user-email', email.value)
-      router.push('/user')
-    } else {
-      alert("Invalid credentials.")
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.value, password: password.value })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Login failed");
+        return;
+      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user-role', data.user.role);
+      localStorage.setItem('user-email', data.user.email);
+      router.push(data.user.role === 'admin' ? '/admin' : '/user');
+    } catch (e) {
+      alert("Failed to connect to backend for login.");
     }
   }
 }

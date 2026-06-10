@@ -64,23 +64,29 @@ const router = useRouter()
 const adminEmail = ref('admin@gmail.com')
 
 const pendingApplications = ref([])
-const totalOutlay = ref(10000000000000) // Initial outlay: $10,00,00,00,00,000
+const totalOutlay = ref(0)
 let pollingInterval = null
 
-onMounted(() => {
+onMounted(async () => {
   const email = localStorage.getItem('user-email')
   if (email) {
     adminEmail.value = email
   }
   
-  loadApplications()
-  
-  const storedOutlay = localStorage.getItem('lms-total-outlay')
-  if (storedOutlay) {
-    totalOutlay.value = Number(storedOutlay)
-  } else {
-    localStorage.setItem('lms-total-outlay', totalOutlay.value.toString())
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/loans/pool`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      totalOutlay.value = data.availablePool || 0;
+    }
+  } catch (e) {
+    console.error("Error loading total outlay:", e);
   }
+  
+  loadApplications()
 
   pollingInterval = setInterval(() => {
     loadApplications()
@@ -93,14 +99,30 @@ onUnmounted(() => {
   }
 })
 
-const loadApplications = () => {
-  const allApps = localStorage.getItem('lms-applications')
-  if (allApps) {
-    const apps = JSON.parse(allApps)
-    pendingApplications.value = apps.filter(app => app.status === 'Pending')
-  } else {
-    localStorage.setItem('lms-applications', JSON.stringify([]))
-    pendingApplications.value = []
+const loadApplications = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/loans/pending`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      pendingApplications.value = data.loans.map(loan => ({
+        id: loan.loanReqId,
+        loanReqId: loan.loanReqId,
+        name: loan.name || loan.userId,
+        email: loan.email || '',
+        age: loan.age || '',
+        type: loan.type || 'Personal Loan',
+        amount: loan.amount,
+        status: loan.status,
+        documents: loan.documents || {}
+      }));
+    } else {
+      console.error("Failed to load pending applications from server");
+    }
+  } catch (e) {
+    console.error("Error loading pending applications:", e);
   }
 }
 
@@ -117,41 +139,58 @@ const goToTransactions = () => {
   router.push('/admin/transactions')
 }
 
-const approveApplication = (application) => {
-  const allApps = JSON.parse(localStorage.getItem('lms-applications') || '[]')
-  const index = allApps.findIndex(app => app.id === application.id)
-  if (index !== -1) {
-    allApps[index].status = 'Approved'
-    localStorage.setItem('lms-applications', JSON.stringify(allApps))
-    
-    totalOutlay.value -= Number(application.amount)
-    localStorage.setItem('lms-total-outlay', totalOutlay.value.toString())
-    
-    const allTxns = JSON.parse(localStorage.getItem('lms-transactions') || '[]')
-    const newTxn = {
-      id: 'TXN-' + Date.now(),
-      applicantName: application.name,
-      applicantEmail: application.email,
-      amount: application.amount,
-      date: new Date().toLocaleString()
+const approveApplication = async (application) => {
+  const token = localStorage.getItem('token');
+  try {
+    if (application.loanReqId) {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/loan/${application.loanReqId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'COMPLETED' })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert("Failed to update on backend: " + (err.error || "Unknown error"));
+        return;
+      }
     }
-    allTxns.push(newTxn)
-    localStorage.setItem('lms-transactions', JSON.stringify(allTxns))
+
+    totalOutlay.value -= Number(application.amount)
     
     alert(`Application approved for ${application.name} (${formatAmount(application.amount)})`)
     loadApplications()
+  } catch (e) {
+    alert("Connection error with backend: " + e.message);
   }
 }
 
-const rejectApplication = (application) => {
+const rejectApplication = async (application) => {
   if (confirm(`Are you sure you want to reject ${application.name}'s loan request?`)) {
-    const allApps = JSON.parse(localStorage.getItem('lms-applications') || '[]')
-    const index = allApps.findIndex(app => app.id === application.id)
-    if (index !== -1) {
-      allApps[index].status = 'Rejected'
-      localStorage.setItem('lms-applications', JSON.stringify(allApps))
+    const token = localStorage.getItem('token');
+    try {
+      if (application.loanReqId) {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/loan/${application.loanReqId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: 'REJECTED' })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert("Failed to update on backend: " + (err.error || "Unknown error"));
+          return;
+        }
+      }
+
       alert(`Application rejected for ${application.name}`)
       loadApplications()
+    } catch (e) {
+      alert("Connection error with backend: " + e.message);
     }
   }
 }
