@@ -52,8 +52,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from "vue-toastification"
 
 const router = useRouter()
+const toast = useToast()
 const transactions = ref([])
 
 onMounted(() => {
@@ -106,12 +108,12 @@ const clearHistory = async () => {
       });
       if (res.ok) {
         transactions.value = [];
-        alert("Transaction history cleared successfully");
+        toast.success("Transaction history cleared successfully");
       } else {
-        alert("Failed to clear history on backend");
+        toast.error("Failed to clear history on backend");
       }
     } catch (e) {
-      alert("Error clearing history");
+      toast.error("Error clearing history");
     }
   }
 }

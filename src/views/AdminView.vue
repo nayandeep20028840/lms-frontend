@@ -59,8 +59,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from "vue-toastification"
 
 const router = useRouter()
+const toast = useToast()
 const adminEmail = ref('admin@gmail.com')
 
 const pendingApplications = ref([])
@@ -153,17 +155,17 @@ const approveApplication = async (application) => {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert("Failed to update on backend: " + (err.error || "Unknown error"));
+        toast.error("Failed to update on backend: " + (err.error || "Unknown error"));
         return;
       }
     }
 
     totalOutlay.value -= Number(application.amount)
     
-    alert(`Application approved for ${application.name} (${formatAmount(application.amount)})`)
+    toast.success(`Application approved for ${application.name} (${formatAmount(application.amount)})`)
     loadApplications()
   } catch (e) {
-    alert("Connection error with backend: " + e.message);
+    toast.error("Connection error with backend: " + e.message);
   }
 }
 
@@ -182,15 +184,15 @@ const rejectApplication = async (application) => {
         });
         if (!res.ok) {
           const err = await res.json();
-          alert("Failed to update on backend: " + (err.error || "Unknown error"));
+          toast.error("Failed to update on backend: " + (err.error || "Unknown error"));
           return;
         }
       }
 
-      alert(`Application rejected for ${application.name}`)
+      toast.success(`Application rejected for ${application.name}`)
       loadApplications()
     } catch (e) {
-      alert("Connection error with backend: " + e.message);
+      toast.error("Connection error with backend: " + e.message);
     }
   }
 }

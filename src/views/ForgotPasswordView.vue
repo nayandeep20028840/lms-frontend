@@ -85,7 +85,9 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useToast } from "vue-toastification"
 
+const toast = useToast()
 const step = ref(1)
 const email = ref('')
 const otp = ref('')
@@ -106,7 +108,7 @@ const handleOtpSubmit = () => {
 
 const handlePasswordSubmit = () => {
   if (newPassword.value !== confirmPassword.value) {
-    alert("Passwords do not match!")
+    toast.warning("Passwords do not match!")
     return
   }
   step.value = 4

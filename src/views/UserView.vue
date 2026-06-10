@@ -179,8 +179,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from "vue-toastification"
 
 const router = useRouter()
+const toast = useToast()
 const userEmail = ref('user@gmail.com')
 const showApplyForm = ref(false)
 const quickAmount = ref('')
@@ -234,7 +236,7 @@ onMounted(() => {
 
 const startApplication = () => {
   if (!quickAmount.value || Number(quickAmount.value) <= 0) {
-    alert("Please enter a valid loan amount.")
+    toast.warning("Please enter a valid loan amount.")
     return
   }
 
@@ -246,7 +248,7 @@ const submitApplication = async () => {
 
   const token = localStorage.getItem('token');
   if (!token) {
-    alert("You must be logged in to apply.");
+    toast.error("You must be logged in to apply.");
     return;
   }
 
@@ -298,7 +300,7 @@ const submitApplication = async () => {
       documentIds[type] = confirmData.documentId;
     } catch (e) {
       console.error(`Error uploading ${type}:`, e);
-      alert(`Failed to upload ${type}. Continuing anyway.`);
+      toast.warning(`Failed to upload ${type}. Continuing anyway.`);
     }
   }
 
@@ -328,18 +330,18 @@ const submitApplication = async () => {
     if (!res.ok) {
       const err = await res.json();
       if (err.availablePool !== undefined) {
-        alert(`${err.error}\nMax available pool: $${err.availablePool}\nYou requested: $${err.requestedAmount}`);
+        toast.error(`${err.error}\nMax available pool: $${err.availablePool}\nYou requested: $${err.requestedAmount}`);
       } else {
-        alert(err.error || "Failed to submit loan request");
+        toast.error(err.error || "Failed to submit loan request");
       }
       return;
     }
   } catch (e) {
-    alert("Connection error with backend. " + e.message);
+    toast.error("Connection error with backend. " + e.message);
     return;
   }
 
-  alert("Loan application submitted successfully! It is now pending review.")
+  toast.success("Loan application submitted successfully! It is now pending review.")
   
   showApplyForm.value = false
   quickAmount.value = ''

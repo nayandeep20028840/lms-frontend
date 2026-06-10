@@ -80,8 +80,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from "vue-toastification"
 
 const router = useRouter()
+const toast = useToast()
 const isSignUp = ref(false)
 const email = ref('')
 const password = ref('')
@@ -99,7 +101,7 @@ const toggleMode = () => {
 const handleSubmit = async () => {
   if (isSignUp.value) {
     if (password.value !== confirmPassword.value) {
-      alert("Passwords do not match!")
+      toast.warning("Passwords do not match!")
       return
     }
     try {
@@ -115,13 +117,13 @@ const handleSubmit = async () => {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Signup failed");
+        toast.error(data.error || "Signup failed");
         return;
       }
-      alert(`Sign up successful for ${name.value}! You can now sign in.`)
+      toast.success(`Sign up successful for ${name.value}! You can now sign in.`)
       toggleMode()
     } catch (e) {
-      alert("Failed to connect to backend for signup.");
+      toast.error("Failed to connect to backend for signup.");
     }
   } else {
     try {
@@ -132,7 +134,7 @@ const handleSubmit = async () => {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Login failed");
+        toast.error(data.error || "Login failed");
         return;
       }
       localStorage.setItem('token', data.token);
@@ -140,7 +142,7 @@ const handleSubmit = async () => {
       localStorage.setItem('user-email', data.user.email);
       router.push(data.user.role === 'admin' ? '/admin' : '/user');
     } catch (e) {
-      alert("Failed to connect to backend for login.");
+      toast.error("Failed to connect to backend for login.");
     }
   }
 }
